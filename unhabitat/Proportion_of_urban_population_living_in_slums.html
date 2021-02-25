@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@uber">
+        <meta name="twitter:creator" content="@uber">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@2.4.0/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoidmlkYXJ2YXNrbyIsImEiOiJja2tmOTd1NjIwOWVqMnBud2toajkzdWh0In0.Tzi4AaQ0ACBU308umt4-8A';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: true,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                LogoSvg(),
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"yhbev1jj","label":"Proportion of urban population living in slums.csv","color":[143,47,191],"allData":[[1,"11.1.1","Proportion of urban population living in slums (%)","Myanmar","South-Eastern Asia",96.51752295,21.19332882,56.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[2,"11.1.1","Proportion of urban population living in slums (%)","Burundi","Eastern Africa",29.89080992,-3.366387428,47.7,"United Nations Human Settlements Programme (UN-HABITAT)"],[3,"11.1.1","Proportion of urban population living in slums (%)","Belarus","Eastern Europe",28.04940161,53.54193075,33.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[4,"11.1.1","Proportion of urban population living in slums (%)","Cambodia","South-Eastern Asia",104.922836,12.71163737,45.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[5,"11.1.1","Proportion of urban population living in slums (%)","Cameroon","Middle Africa",12.7419827,5.692387031,33.7,"United Nations Human Settlements Programme (UN-HABITAT)"],[6,"11.1.1","Proportion of urban population living in slums (%)","Canada","Northern America",-101.6575058,57.72360191,0.01,"United Nations Human Settlements Programme (UN-HABITAT)"],[7,"11.1.1","Proportion of urban population living in slums (%)","Central African Republic","Middle Africa",20.93559492,7.003720791,95.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[8,"11.1.1","Proportion of urban population living in slums (%)","Chad","Middle Africa",18.66618401,15.36279341,86.9,"United Nations Human Settlements Programme (UN-HABITAT)"],[9,"11.1.1","Proportion of urban population living in slums (%)","Chile","South America",-71.23029019,-35.2652885,8.8,"United Nations Human Settlements Programme (UN-HABITAT)"],[10,"11.1.1","Proportion of urban population living in slums (%)","China","Eastern Asia",104.1403375,32.30955217,24.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[11,"11.1.1","Proportion of urban population living in slums (%)","Colombia","South America",-73.07446751,3.888209046,27.8,"United Nations Human Settlements Programme (UN-HABITAT)"],[12,"11.1.1","Proportion of urban population living in slums (%)","Comoros","Eastern Africa",43.34234565,-11.66121732,68.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[13,"11.1.1","Proportion of urban population living in slums (%)","Congo","Western Africa",15.22052612,-0.840544119,47.8,"United Nations Human Settlements Programme (UN-HABITAT)"],[14,"11.1.1","Proportion of urban population living in slums (%)","Democratic Republic of the Congo","Middle Africa",23.65496507,-2.877154732,77.5,"United Nations Human Settlements Programme (UN-HABITAT)"],[15,"11.1.1","Proportion of urban population living in slums (%)","Costa Rica","Central America",-84.19712782,9.970998683,3.9,"United Nations Human Settlements Programme (UN-HABITAT)"],[16,"11.1.1","Proportion of urban population living in slums (%)","Cuba","Caribbean",-79.54460144,22.10030366,6.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[17,"11.1.1","Proportion of urban population living in slums (%)","Benin","Western Africa",2.339933594,9.65401646,58.8,"United Nations Human Settlements Programme (UN-HABITAT)"],[18,"11.1.1","Proportion of urban population living in slums (%)","Denmark","Northern Europe",9.326571283,56.03829721,1,"United Nations Human Settlements Programme (UN-HABITAT)"],[19,"11.1.1","Proportion of urban population living in slums (%)","Dominican Republic","Caribbean",-70.49847576,18.89832088,14.8,"United Nations Human Settlements Programme (UN-HABITAT)"],[20,"11.1.1","Proportion of urban population living in slums (%)","Ecuador","South America",-78.37005241,-1.447785891,20.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[21,"11.1.1","Proportion of urban population living in slums (%)","El Salvador","Central America",-88.86862995,13.73603564,22.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[22,"11.1.1","Proportion of urban population living in slums (%)","Equatorial Guinea","Middle Africa",10.46535826,1.565792376,64.9,"United Nations Human Settlements Programme (UN-HABITAT)"],[23,"11.1.1","Proportion of urban population living in slums (%)","Ethiopia","Eastern Africa",39.63505296,8.631223181,64.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[24,"11.1.1","Proportion of urban population living in slums (%)","Angola","Middle Africa",17.57817062,-12.33724746,48.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[25,"11.1.1","Proportion of urban population living in slums (%)","Fiji","Melanesia",177.9660884,-17.83301566,11.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[26,"11.1.1","Proportion of urban population living in slums (%)","French Guiana","South America",-53.23619089,3.922673437,10.5,"United Nations Human Settlements Programme (UN-HABITAT)"],[27,"11.1.1","Proportion of urban population living in slums (%)","Djibouti","Eastern Africa",42.18274707,11.56004161,64.5,"United Nations Human Settlements Programme (UN-HABITAT)"],[28,"11.1.1","Proportion of urban population living in slums (%)","Gabon","Middle Africa",11.78727747,-0.60687619,36.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[29,"11.1.1","Proportion of urban population living in slums (%)","Georgia","Western Asia",43.3713615,42.04813028,34.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[30,"11.1.1","Proportion of urban population living in slums (%)","Gambia","Western Africa",-15.39944785,13.45295927,27.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[31,"11.1.1","Proportion of urban population living in slums (%)","State of Palestine","Western Asia",35.25694122,31.94347933,42.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[32,"11.1.1","Proportion of urban population living in slums (%)","Germany","Western Europe",10.3806066,51.08862743,0.01,"United Nations Human Settlements Programme (UN-HABITAT)"],[33,"11.1.1","Proportion of urban population living in slums (%)","Ghana","Western Africa",-1.205623522,7.964825185,30.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[34,"11.1.1","Proportion of urban population living in slums (%)","Greece","Southern Europe",22.58307827,39.47301873,3,"United Nations Human Settlements Programme (UN-HABITAT)"],[35,"11.1.1","Proportion of urban population living in slums (%)","Grenada","Caribbean",-61.68248568,12.11238395,6,"United Nations Human Settlements Programme (UN-HABITAT)"],[36,"11.1.1","Proportion of urban population living in slums (%)","Guadeloupe","Caribbean",-61.64762115,16.14416917,5.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[37,"11.1.1","Proportion of urban population living in slums (%)","Argentina","South America",-65.14563274,-35.19446255,14.7,"United Nations Human Settlements Programme (UN-HABITAT)"],[38,"11.1.1","Proportion of urban population living in slums (%)","Guatemala","Central America",-91.2312746,15.00273719,31,"United Nations Human Settlements Programme (UN-HABITAT)"],[39,"11.1.1","Proportion of urban population living in slums (%)","Guinea","Western Africa",-11.28173419,11.00210343,50.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[40,"11.1.1","Proportion of urban population living in slums (%)","Guyana","South America",-58.97322037,4.788012784,31.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[41,"11.1.1","Proportion of urban population living in slums (%)","Haiti","Caribbean",-72.33640958,18.40426539,65.9,"United Nations Human Settlements Programme (UN-HABITAT)"],[42,"11.1.1","Proportion of urban population living in slums (%)","Honduras","Central America",-86.59974381,14.82243161,38.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[43,"11.1.1","Proportion of urban population living in slums (%)","Hungary","Eastern Europe",19.41221519,47.1651448,13.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[44,"11.1.1","Proportion of urban population living in slums (%)","India","Southern Asia",79.3608464,22.34642074,35.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[45,"11.1.1","Proportion of urban population living in slums (%)","Indonesia","South-Eastern Asia",113.9174,-0.994582204,30.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[46,"11.1.1","Proportion of urban population living in slums (%)","Iran (Islamic Republic of)","Southern Asia",54.19766348,32.74370885,25.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[47,"11.1.1","Proportion of urban population living in slums (%)","Iraq","Western Asia",43.76606267,33.05013795,45.7,"United Nations Human Settlements Programme (UN-HABITAT)"],[48,"11.1.1","Proportion of urban population living in slums (%)","Côte d'Ivoire","Western Africa",-5.552690016,7.62211586,60.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[49,"11.1.1","Proportion of urban population living in slums (%)","Jamaica","Caribbean",-77.31068409,18.15616857,57.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[50,"11.1.1","Proportion of urban population living in slums (%)","Afghanistan","Southern Asia",66.02688198,33.83160199,70.7,"United Nations Human Settlements Programme (UN-HABITAT)"],[51,"11.1.1","Proportion of urban population living in slums (%)","Jordan","Western Asia",37.13024774,30.65365973,23.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[52,"11.1.1","Proportion of urban population living in slums (%)","Kenya","Eastern Africa",37.86096816,0.534797278,46.5,"United Nations Human Settlements Programme (UN-HABITAT)"],[53,"11.1.1","Proportion of urban population living in slums (%)","Kyrgyzstan","Central Asia",74.52324839,41.46204516,9.7,"United Nations Human Settlements Programme (UN-HABITAT)"],[54,"11.1.1","Proportion of urban population living in slums (%)","Lao People's Democratic Republic","South-Eastern Asia",101.9901968,20.27482773,21.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[55,"11.1.1","Proportion of urban population living in slums (%)","Lebanon","Western Asia",35.89391711,33.92152458,61.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[56,"11.1.1","Proportion of urban population living in slums (%)","Lesotho","Southern Africa",28.25362195,-29.58041814,53.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[57,"11.1.1","Proportion of urban population living in slums (%)","Liberia","Western Africa",-9.311879038,6.448381009,70.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[58,"11.1.1","Proportion of urban population living in slums (%)","Madagascar","Eastern Africa",46.6982339,-19.38514785,61.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[59,"11.1.1","Proportion of urban population living in slums (%)","Malawi","Eastern Africa",33.4884625,-13.40819859,65.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[60,"11.1.1","Proportion of urban population living in slums (%)","Maldives","Southern Asia",73.09672546,-0.614385021,30.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[61,"11.1.1","Proportion of urban population living in slums (%)","Mali","Western Africa",-3.522016039,17.35311254,47.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[62,"11.1.1","Proportion of urban population living in slums (%)","Mauritania","Western Africa",-10.33187259,20.26089546,73.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[63,"11.1.1","Proportion of urban population living in slums (%)","Mexico","Central America",-102.5148166,23.93378032,16,"United Nations Human Settlements Programme (UN-HABITAT)"],[64,"11.1.1","Proportion of urban population living in slums (%)","Mongolia","Eastern Asia",103.0728057,46.83892054,38.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[65,"11.1.1","Proportion of urban population living in slums (%)","Republic of Moldova","Eastern Europe",28.4650624,47.20236795,59.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[66,"11.1.1","Proportion of urban population living in slums (%)","Montenegro","Southern Europe",19.25214024,42.78717043,27.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[67,"11.1.1","Proportion of urban population living in slums (%)","Bangladesh","Southern Asia",89.17660788,22.86961622,47.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[68,"11.1.1","Proportion of urban population living in slums (%)","Morocco","Northern Africa",-6.281942841,31.8440131,9.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[69,"11.1.1","Proportion of urban population living in slums (%)","Mozambique","Eastern Africa",38.18479941,-14.27963886,77.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[70,"11.1.1","Proportion of urban population living in slums (%)","Armenia","Western Asia",44.93839317,40.29499741,9.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[71,"11.1.1","Proportion of urban population living in slums (%)","Namibia","Southern Africa",17.21907885,-22.13817068,42.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[72,"11.1.1","Proportion of urban population living in slums (%)","Nepal","Southern Asia",83.94678863,28.25866332,49.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[73,"11.1.1","Proportion of urban population living in slums (%)","Nicaragua","Central America",-85.03060315,12.84210839,42.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[74,"11.1.1","Proportion of urban population living in slums (%)","Niger","Western Africa",9.400167877,17.42143036,58.8,"United Nations Human Settlements Programme (UN-HABITAT)"],[75,"11.1.1","Proportion of urban population living in slums (%)","Nigeria","Western Africa",8.097363256,9.585789025,53.9,"United Nations Human Settlements Programme (UN-HABITAT)"],[76,"11.1.1","Proportion of urban population living in slums (%)","Norway","Northern Europe",11.47846389,61.34311134,1,"United Nations Human Settlements Programme (UN-HABITAT)"],[77,"11.1.1","Proportion of urban population living in slums (%)","Pakistan","Southern Asia",68.80479684,29.36491634,40.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[78,"11.1.1","Proportion of urban population living in slums (%)","Panama","Central America",-81.26616623,8.450965746,22.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[79,"11.1.1","Proportion of urban population living in slums (%)","Paraguay","South America",-60.54854225,-21.70216237,17.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[80,"11.1.1","Proportion of urban population living in slums (%)","Peru","South America",-71.82093277,-13.58939705,33.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[81,"11.1.1","Proportion of urban population living in slums (%)","Philippines","South-Eastern Asia",120.8601418,14.16591706,42.9,"United Nations Human Settlements Programme (UN-HABITAT)"],[82,"11.1.1","Proportion of urban population living in slums (%)","Poland","Eastern Europe",19.40660158,52.1226733,0.01,"United Nations Human Settlements Programme (UN-HABITAT)"],[83,"11.1.1","Proportion of urban population living in slums (%)","Portugal","Southern Europe",-7.961599811,39.68509315,3.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[84,"11.1.1","Proportion of urban population living in slums (%)","Guinea-Bissau","Western Africa",-14.40182514,12.11760394,74.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[85,"11.1.1","Proportion of urban population living in slums (%)","Timor-Leste","South-Eastern Asia",125.9451052,-8.797497247,33.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[86,"11.1.1","Proportion of urban population living in slums (%)","Romania","Eastern Europe",24.98481009,45.83893563,12.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[87,"11.1.1","Proportion of urban population living in slums (%)","Rwanda","Eastern Africa",29.92310194,-1.999842114,42.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[88,"11.1.1","Proportion of urban population living in slums (%)","Saint Lucia","Caribbean",-60.96529553,13.89405601,11.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[89,"11.1.1","Proportion of urban population living in slums (%)","Sao Tome and Principe","Middle Africa",6.609772265,0.241554875,85.7,"United Nations Human Settlements Programme (UN-HABITAT)"],[90,"11.1.1","Proportion of urban population living in slums (%)","Bolivia (Plurinational State of)","South America",-64.66224284,-16.71273412,48.5,"United Nations Human Settlements Programme (UN-HABITAT)"],[91,"11.1.1","Proportion of urban population living in slums (%)","Saudi Arabia","Western Asia",44.54763347,24.12594211,16.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[92,"11.1.1","Proportion of urban population living in slums (%)","Senegal","Western Africa",-14.46636926,14.35920905,29.5,"United Nations Human Settlements Programme (UN-HABITAT)"],[93,"11.1.1","Proportion of urban population living in slums (%)","Serbia","Southern Europe",20.805876,44.03145697,3.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[94,"11.1.1","Proportion of urban population living in slums (%)","Sierra Leone","Western Africa",-11.78306584,8.568604164,59.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[95,"11.1.1","Proportion of urban population living in slums (%)","Bosnia and Herzegovina","Southern Europe",17.78584332,44.16845548,7.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[96,"11.1.1","Proportion of urban population living in slums (%)","Viet Nam","South-Eastern Asia",105.802499,10.09643079,13.8,"United Nations Human Settlements Programme (UN-HABITAT)"],[97,"11.1.1","Proportion of urban population living in slums (%)","Slovenia","Southern Europe",14.82209486,46.11958061,3.7,"United Nations Human Settlements Programme (UN-HABITAT)"],[98,"11.1.1","Proportion of urban population living in slums (%)","Somalia","Eastern Africa",46.20367477,4.406485729,72.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[99,"11.1.1","Proportion of urban population living in slums (%)","South Africa","Southern Africa",24.67184355,-29.99957544,25.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[100,"11.1.1","Proportion of urban population living in slums (%)","Zimbabwe","Eastern Africa",29.86909584,-19.00075492,33.5,"United Nations Human Settlements Programme (UN-HABITAT)"],[101,"11.1.1","Proportion of urban population living in slums (%)","Spain","Southern Europe",-3.554078296,40.39211472,5.5,"United Nations Human Settlements Programme (UN-HABITAT)"],[102,"11.1.1","Proportion of urban population living in slums (%)","South Sudan","Eastern Africa",30.32618773,7.290839152,91.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[103,"11.1.1","Proportion of urban population living in slums (%)","Sudan","Northern Africa",29.95650159,16.02643066,88.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[104,"11.1.1","Proportion of urban population living in slums (%)","Suriname","South America",-55.90626394,4.132603197,5.9,"United Nations Human Settlements Programme (UN-HABITAT)"],[105,"11.1.1","Proportion of urban population living in slums (%)","Eswatini","Southern Africa",31.50149288,-26.56471011,32.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[106,"11.1.1","Proportion of urban population living in slums (%)","Sweden","Northern Europe",14.3775338,60.60103109,1,"United Nations Human Settlements Programme (UN-HABITAT)"],[107,"11.1.1","Proportion of urban population living in slums (%)","Brazil","South America",-53.08432878,-10.77668561,16.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[108,"11.1.1","Proportion of urban population living in slums (%)","Syrian Arab Republic","Western Asia",38.50466565,35.01676176,37.9,"United Nations Human Settlements Programme (UN-HABITAT)"],[109,"11.1.1","Proportion of urban population living in slums (%)","Tajikistan","Central Asia",69.294998,38.43069666,26,"United Nations Human Settlements Programme (UN-HABITAT)"],[110,"11.1.1","Proportion of urban population living in slums (%)","Thailand","South-Eastern Asia",101.0202951,15.13089239,23.7,"United Nations Human Settlements Programme (UN-HABITAT)"],[111,"11.1.1","Proportion of urban population living in slums (%)","Togo","Western Africa",0.97835765,8.532096072,54.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[112,"11.1.1","Proportion of urban population living in slums (%)","Trinidad and Tobago","Caribbean",-61.29389504,10.41877263,5.4,"United Nations Human Settlements Programme (UN-HABITAT)"],[113,"11.1.1","Proportion of urban population living in slums (%)","Tunisia","Northern Africa",9.572737411,34.11439971,8.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[114,"11.1.1","Proportion of urban population living in slums (%)","Turkey","Western Asia",35.42890329,38.9899684,8.6,"United Nations Human Settlements Programme (UN-HABITAT)"],[115,"11.1.1","Proportion of urban population living in slums (%)","Uganda","Eastern Africa",32.39100438,1.279557331,48.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[116,"11.1.1","Proportion of urban population living in slums (%)","Ukraine","Eastern Europe",31.40270802,49.00735945,19,"United Nations Human Settlements Programme (UN-HABITAT)"],[117,"11.1.1","Proportion of urban population living in slums (%)","North Macedonia","Southern Europe",21.7007909,41.60048068,8.3,"United Nations Human Settlements Programme (UN-HABITAT)"],[118,"11.1.1","Proportion of urban population living in slums (%)","Egypt","Northern Africa",29.77468534,26.57438204,5.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[119,"11.1.1","Proportion of urban population living in slums (%)","United Republic of Tanzania","Eastern Africa",34.80521182,-6.265332606,40.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[120,"11.1.1","Proportion of urban population living in slums (%)","Belize","Central America",-88.70199554,17.19965901,5,"United Nations Human Settlements Programme (UN-HABITAT)"],[121,"11.1.1","Proportion of urban population living in slums (%)","Burkina Faso","Western Africa",-1.742843829,12.27491081,57.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[122,"11.1.1","Proportion of urban population living in slums (%)","Uzbekistan","Central Asia",63.11944558,41.77560518,52.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[123,"11.1.1","Proportion of urban population living in slums (%)","Venezuela (Bolivarian Republic of)","South America",-66.15642084,7.121324748,44.1,"United Nations Human Settlements Programme (UN-HABITAT)"],[124,"11.1.1","Proportion of urban population living in slums (%)","Yemen","Western Asia",45.22389143,15.22242099,66.2,"United Nations Human Settlements Programme (UN-HABITAT)"],[125,"11.1.1","Proportion of urban population living in slums (%)","Zambia","Eastern Africa",27.850329,-14.59701056,54.6,"United Nations Human Settlements Programme (UN-HABITAT)"]],"fields":[{"name":"ObjectId","type":"integer","format":"","analyzerType":"INT"},{"name":"indicator_reference","type":"string","format":"","analyzerType":"STRING"},{"name":"seriesDescription","type":"string","format":"","analyzerType":"STRING"},{"name":"Country","type":"string","format":"","analyzerType":"STRING"},{"name":"parentName","type":"string","format":"","analyzerType":"STRING"},{"name":"X (longitude)","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Y (latitude)","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Percentage","type":"real","format":"","analyzerType":"FLOAT"},{"name":"sources","type":"string","format":"","analyzerType":"STRING"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[],"layers":[{"id":"ndxzjik","type":"point","config":{"dataId":"yhbev1jj","label":"Proportion of urban population living in slums","color":[255,203,153],"columns":{"lat":"Y (latitude)","lng":"X (longitude)","altitude":null},"isVisible":true,"visConfig":{"radius":10,"fixedRadius":false,"opacity":0.45,"outline":false,"thickness":2,"strokeColor":null,"colorRange":{"name":"ColorBrewer YlGn-6","type":"sequential","category":"ColorBrewer","colors":["#ffffcc","#d9f0a3","#addd8e","#78c679","#31a354","#006837"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radiusRange":[13.3,122.8],"filled":true},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":{"name":"Percentage","type":"real"},"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":{"name":"Percentage","type":"real"},"sizeScale":"sqrt"}}],"interactionConfig":{"tooltip":{"fieldsToShow":{"yhbev1jj":[{"name":"Country","format":null},{"name":"Percentage","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1}},"mapState":{"bearing":0,"dragRotate":false,"latitude":21.36156583875859,"longitude":3.6540230554643762,"pitch":0,"zoom":2.118201819370791,"isSplit":false},"mapStyle":{"styleType":"light","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[9.665468314072013,17.18305478057247,31.1442867897876],"mapStyles":{}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
